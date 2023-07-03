@@ -139,7 +139,7 @@ class drawMountain:
                 pygame.gfxdraw.filled_polygon(self.surf, ((rx, ry), (rx1, ry1), (rx3, ry3)), shade3)
                 pygame.gfxdraw.filled_polygon(self.surf, ((rx, ry), (rx3, ry3), (rx4, ry4)), shade4)
 
-        pygame.transform.smoothscale(self.surf,(960,720), window)
+        pygame.transform.smoothscale(pygame.transform.gaussian_blur(self.surf,1),(960,720), window)
         window.blit(self.surf, (960,720))
         pygame.display.flip()
         pygame.display.update()
@@ -148,7 +148,6 @@ class drawMountain:
         now = datetime.now()
         fn = now.strftime("mountain-%Y%m%d-%H%M%S.png")
         pygame.image.save(self.surf, fn)
-        print("doopy")
 
 dm = drawMountain()
 
