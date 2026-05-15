@@ -1,8 +1,3 @@
-#!/usr/bin/env python
-# Originally Copyright 1987 Compute! Publications, Inc.
-# All Rights Reserved.
-# Ported to Pygame 2020 Shane Simmons
-
 import pygame
 import random
 import pygame.gfxdraw
@@ -11,12 +6,14 @@ import numpy as np
 from pygame.locals import *
 from datetime import datetime
 
-# --- CRT SHADER SOURCE ---
+# --- ZFAST CRT SHADER SOURCE ---
+# Adapted from: https://github.com/libretro/glsl-shaders/blob/master/crt/shaders/zfast_crt.glsl
 VERTEX_SHADER = """
 #version 330
 in vec2 in_vert;
 in vec2 in_uv;
 out vec2 v_uv;
+
 void main() {
     v_uv = in_uv;
     gl_Position = vec4(in_vert, 0.0, 1.0);
@@ -26,39 +23,65 @@ void main() {
 FRAGMENT_SHADER = """
 #version 330
 uniform sampler2D tex;
+uniform vec4 SourceSize;
+uniform vec4 OutputSize;
 in vec2 v_uv;
 out vec4 f_color;
 
-void main() {
-    // Curvature effect
-    vec2 uv = v_uv * 2.0 - 1.0;
-    vec2 offset = abs(uv.yx) / vec2(12.0, 8.0); // Adjust for curve intensity
-    uv = uv + uv * offset * offset;
-    uv = uv * 0.5 + 0.5;
+// --- ADJUSTABLE PARAMETERS ---
+#define SCANLINE_WEIGHT 1.5         // Lower = softer scanlines, less banding
+#define SCANLINE_GAP_BRIGHTNESS 0.65 // Higher = less contrast, but smoother
+#define BLOOM_FACTOR 1.25
+#define INPUT_GAMMA 1.8
+#define OUTPUT_GAMMA 2.2
 
-    if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) {
+// Simple hash for dithering (eliminates color banding)
+float rand(vec2 co) {
+    return fract(sin(dot(co.xy, vec2(12.9898, 78.233))) * 43758.5453);
+}
+
+void main() {
+    vec2 uv = v_uv;
+
+    // 1. Curvature (Reduced slightly to prevent edge banding)
+    vec2 cc = uv - 0.5;
+    float dist = dot(cc, cc) * 0.002;
+    uv = (cc + cc * dist) + 0.5;
+
+    if (uv.x < 0.0 || uv.y < 0.0 || uv.x > 1.0 || uv.y > 1.0) {
         f_color = vec4(0.0, 0.0, 0.0, 1.0);
         return;
     }
 
-    vec4 baseColor = texture(tex, uv);
+    // 2. Sample Color & Linearize
+    vec3 col = texture(tex, uv).rgb;
+    col = pow(col, vec3(INPUT_GAMMA));
+
+    // 3. Smooth Scanlines (The "Zfast" Anti-Banding Method)
+    // We calculate the distance to the center of the source pixel
+    float pos_y = uv.y * SourceSize.y;
+    float delta_y = abs(fract(pos_y) - 0.5);
     
-    // Scanline intensity
-    baseColor.rgb *= 1.1; // 10% brightness boost
-    float scanline = sin(uv.y * 3.1415927 * 200.0) * 0.033333333;
-    baseColor.rgb -= scanline;
+    // Using smoothstep instead of a hard multiply reduces moiré patterns
+    float scanline = mix(1.0, SCANLINE_GAP_BRIGHTNESS, smoothstep(0.0, 0.5, delta_y * SCANLINE_WEIGHT));
 
+    // 4. Combine and Apply Bloom
+    col *= scanline;
+    col *= BLOOM_FACTOR;
 
-    // Subtle Vignette
-    float vignette = uv.x * (1.0 - uv.x) * uv.y * (1.0 - uv.y) * 15.0;
-    baseColor.rgb *= pow(vignette, 0.08);
+    // 5. Add Dither Noise
+    // This breaks up the "steps" in the gradient colors
+    float noise = (rand(uv) - 0.5) * (1.0 / 255.0);
+    col += noise;
 
-    f_color = baseColor;
+    // 6. Return to Gamma Space
+    f_color = vec4(pow(col, vec3(1.0 / OUTPUT_GAMMA)), 1.0);
 }
 """
 
 
 class drawMountain:
+    # (Original drawMountain logic remains unchanged)
     llv: int = 0
     maxLv: int = 0
     xm = 4.5
@@ -73,7 +96,7 @@ class drawMountain:
     def __init__(self):
         self.lv = [[0.0] * 65 for f in range(65)]
         self.colors = [[0, 0, 0]] * 32
-        self.surf = pygame.Surface((320, 200))  # Internal resolution
+        self.surf = pygame.Surface((320, 200))
         for a in range(16):
             r = min(int(16 * (a / 15.0)), 15)
             g = min(int(16 * (a / 25.0)), 15)
@@ -81,12 +104,11 @@ class drawMountain:
             r += r << 4
             g += g << 4
             b += b << 4
-            self.colors[a] = [r, g, b]  # dirt tones
-            self.colors[a + 16] = [r, r, r]  # snow tones
-            self.colors[16] = [0, 64, 128]  # water color
+            self.colors[a] = [r, g, b]
+            self.colors[a + 16] = [r, r, r]
+            self.colors[16] = [0, 64, 128]
 
     def getshade(self, a, b, x, y):
-        # (Keep original getshade logic)
         try:
             c, d = (x + 1 - (b - y)), (y + (a - x))
             xc, yc = x + 0.5, y + 0.5
@@ -115,28 +137,23 @@ class drawMountain:
     def draw(self):
         self.maxLv = 0
         self.surf.fill((0, 0, 0))
-        max = random.uniform(
-            0.95, 1.15
-        )  # maximum variation, original program says "1 is nice"
+        max_val = random.uniform(0.95, 1.15)
         for iter in range(6, 0, -1):
             sk = 2**iter
             hl = int(sk / 2)
-            # do tops
             for y in range(0, 65, sk):
                 for x in range(hl, 64, sk):
-                    ran = (random.random() - 0.5) * max * sk
+                    ran = (random.random() - 0.5) * max_val * sk
                     old = (self.lv[x - hl][y] + self.lv[x + hl][y]) / 2
                     self.lv[x][y] = old + ran
-                    # do bottoms
             for x in range(0, 65, sk):
                 for y in range(hl, 65, sk):
-                    ran = (random.random() - 0.5) * max * sk
+                    ran = (random.random() - 0.5) * max_val * sk
                     old = (self.lv[x][y - hl] + self.lv[x][y + hl]) / 2
                     self.lv[x][y] = old + ran
-                    # do centers
             for x in range(hl, 65, sk):
                 for y in range(hl, 65, sk):
-                    ran = (random.random() - 0.5) * max * sk
+                    ran = (random.random() - 0.5) * max_val * sk
                     old1 = (self.lv[x + hl][y - hl] + self.lv[x - hl][y + hl]) / 2
                     old2 = (self.lv[x - hl][y - hl] + self.lv[x + hl][y + hl]) / 2
                     old = (old1 + old2) / 2
@@ -188,14 +205,29 @@ class drawMountain:
 
 
 class CRTProcessor:
-    def __init__(self, width, height):
+    def __init__(self, internal_res, output_res):
         self.ctx = moderngl.create_context()
         self.prog = self.ctx.program(
             vertex_shader=VERTEX_SHADER, fragment_shader=FRAGMENT_SHADER
         )
 
-        # This defines the "quad" (two triangles) that fills the screen
-        # Each row is: x, y (position) and u, v (texture coordinates)
+        # Defensive uniform setting: Only set if the shader actually uses them
+        if "SourceSize" in self.prog:
+            self.prog["SourceSize"].value = (
+                internal_res[0],
+                internal_res[1],
+                1.0 / internal_res[0],
+                1.0 / internal_res[1],
+            )
+        if "OutputSize" in self.prog:
+            self.prog["OutputSize"].value = (
+                output_res[0],
+                output_res[1],
+                1.0 / output_res[0],
+                1.0 / output_res[1],
+            )
+
+        # Standard 4-point strip for a full-screen quad
         vertices = np.array(
             [
                 -1.0,
@@ -222,24 +254,24 @@ class CRTProcessor:
         self.vao = self.ctx.vertex_array(
             self.prog, [(self.vbo, "2f 2f", "in_vert", "in_uv")]
         )
-        self.texture = self.ctx.texture((width, height), 4)
+        self.texture = self.ctx.texture(internal_res, 4)
         self.texture.filter = (moderngl.LINEAR, moderngl.LINEAR)
 
     def render(self, surface):
-        # Convert Pygame surface to raw bytes for the GPU
-        rgba_data = pygame.image.tostring(surface, "RGBA", True)
+        rgba_data = pygame.image.tobytes(surface, "RGBA", True)
         self.texture.write(rgba_data)
         self.texture.use()
         self.vao.render(moderngl.TRIANGLE_STRIP)
 
 
 # --- MAIN LOOP ---
-pygame.init()
-# Set display for OpenGL
-pygame.display.set_mode((960, 720), DOUBLEBUF | OPENGL)
-crt = CRTProcessor(320, 200)  # Process the low-res surface
-dm = drawMountain()
+WIDTH, HEIGHT = 960, 720
+INT_W, INT_H = 320, 200
 
+pygame.init()
+pygame.display.set_mode((WIDTH, HEIGHT), DOUBLEBUF | OPENGL)
+crt = CRTProcessor((INT_W, INT_H), (WIDTH, HEIGHT))
+dm = drawMountain()
 dm.draw()
 
 clock = pygame.time.Clock()
@@ -257,11 +289,8 @@ while not done:
             else:
                 dm.draw()
 
-    # Clear GL Context
     crt.ctx.clear(0, 0, 0)
-    # Render mountain surface through the CRT shader
     crt.render(dm.surf)
-
     pygame.display.flip()
     clock.tick(60)
 
