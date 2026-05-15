@@ -1,6 +1,6 @@
 # pygame-fractal-mountain
 
-![fractal mountain image](/images/mountain-20260514.png)
+![fractal mountain image](/images/mountain.png)
 
 A fairly faithful port of an old Compute! Magazine Amiga BASIC fractal mountain
 generator to Python 3 and PyGame.
