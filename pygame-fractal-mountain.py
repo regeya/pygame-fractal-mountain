@@ -29,16 +29,11 @@ in vec2 v_uv;
 out vec4 f_color;
 
 // --- ADJUSTABLE PARAMETERS ---
-#define SCANLINE_WEIGHT 1.5         // Lower = softer scanlines, less banding
+#define SCANLINE_WEIGHT 1.2         // Lower = softer scanlines, less banding
 #define SCANLINE_GAP_BRIGHTNESS 0.65 // Higher = less contrast, but smoother
 #define BLOOM_FACTOR 1.25
 #define INPUT_GAMMA 1.8
 #define OUTPUT_GAMMA 2.2
-
-// Simple hash for dithering (eliminates color banding)
-float rand(vec2 co) {
-    return fract(sin(dot(co.xy, vec2(12.9898, 78.233))) * 43758.5453);
-}
 
 void main() {
     vec2 uv = v_uv;
@@ -69,12 +64,7 @@ void main() {
     col *= scanline;
     col *= BLOOM_FACTOR;
 
-    // 5. Add Dither Noise
-    // This breaks up the "steps" in the gradient colors
-    float noise = (rand(uv) - 0.5) * (1.0 / 255.0);
-    col += noise;
-
-    // 6. Return to Gamma Space
+// 5. Return to Gamma Space
     f_color = vec4(pow(col, vec3(1.0 / OUTPUT_GAMMA)), 1.0);
 }
 """
@@ -145,30 +135,25 @@ class drawMountain:
                 for x in range(hl, 64, sk):
                     ran = (random.random() - 0.5) * max_val * sk
                     old = (self.lv[x - hl][y] + self.lv[x + hl][y]) / 2
-                    self.lv[x][y] = old + ran
+                    self.lv[x][y] = max(0, old + ran)
             for x in range(0, 65, sk):
                 for y in range(hl, 65, sk):
                     ran = (random.random() - 0.5) * max_val * sk
                     old = (self.lv[x][y - hl] + self.lv[x][y + hl]) / 2
-                    self.lv[x][y] = old + ran
+                    self.lv[x][y] = max(0, old + ran)
             for x in range(hl, 65, sk):
                 for y in range(hl, 65, sk):
                     ran = (random.random() - 0.5) * max_val * sk
                     old1 = (self.lv[x + hl][y - hl] + self.lv[x - hl][y + hl]) / 2
                     old2 = (self.lv[x - hl][y - hl] + self.lv[x + hl][y + hl]) / 2
                     old = (old1 + old2) / 2
-                    self.lv[x][y] = old + ran
+                    self.lv[x][y] = max(0, old + ran)
                     if self.lv[x][y] > self.maxLv:
                         self.maxLv = int(self.lv[x][y])
 
         self.snowline = self.maxLv - self.maxLv / 4
-        for x in range(0, 65):
-            if self.lv[x][0] < 0:
-                self.lv[x][0] = 0
-        for y in range(0, 64):
-            if self.lv[0][y] < 0:
-                self.lv[0][y] = 0
-            for x in range(0, 64):
+        for x in range(0, 64):
+            for y in range(0, 64):
                 self.llv = int(
                     (
                         self.lv[x][y]
