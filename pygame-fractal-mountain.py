@@ -135,19 +135,19 @@ class drawMountain:
                 for x in range(hl, 64, sk):
                     ran = (random.random() - 0.5) * max_val * sk
                     old = (self.lv[x - hl][y] + self.lv[x + hl][y]) / 2
-                    self.lv[x][y] = max(0, old + ran)
+                    self.lv[x][y] = old + ran
             for x in range(0, 65, sk):
                 for y in range(hl, 65, sk):
                     ran = (random.random() - 0.5) * max_val * sk
                     old = (self.lv[x][y - hl] + self.lv[x][y + hl]) / 2
-                    self.lv[x][y] = max(0, old + ran)
+                    self.lv[x][y] = old + ran
             for x in range(hl, 65, sk):
                 for y in range(hl, 65, sk):
                     ran = (random.random() - 0.5) * max_val * sk
                     old1 = (self.lv[x + hl][y - hl] + self.lv[x - hl][y + hl]) / 2
                     old2 = (self.lv[x - hl][y - hl] + self.lv[x + hl][y + hl]) / 2
                     old = (old1 + old2) / 2
-                    self.lv[x][y] = max(0, old + ran)
+                    self.lv[x][y] = old + ran
                     if self.lv[x][y] > self.maxLv:
                         self.maxLv = int(self.lv[x][y])
 
@@ -166,19 +166,19 @@ class drawMountain:
                 points = [
                     (
                         self.xm * x + self.xshift * y,
-                        self.ym * y + self.yp - self.lv[x][y],
+                        self.ym * y + self.yp - max(0, self.lv[x][y]),
                     ),
                     (
                         self.xm * (x + 1) + self.xshift * y,
-                        self.ym * y + self.yp - self.lv[x + 1][y],
+                        self.ym * y + self.yp - max(0, self.lv[x + 1][y]),
                     ),
                     (
                         self.xm * (x + 1) + self.xshift * (y + 1),
-                        self.ym * (y + 1) + self.yp - self.lv[x + 1][y + 1],
+                        self.ym * (y + 1) + self.yp - max(0, self.lv[x + 1][y + 1]),
                     ),
                     (
                         self.xm * x + self.xshift * (y + 1),
-                        self.ym * (y + 1) + self.yp - self.lv[x][y + 1],
+                        self.ym * (y + 1) + self.yp - max(0, self.lv[x][y + 1]),
                     ),
                 ]
                 shade = tuple(self.colors[self.getshade(x, y, x, y)])
