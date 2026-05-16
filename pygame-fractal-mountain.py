@@ -3,7 +3,7 @@ import random
 import pygame.gfxdraw
 import crt
 from datetime import datetime
-from pygame.locals import *
+import pygame.locals as pg
 
 
 class drawMountain:
@@ -130,7 +130,7 @@ WIDTH, HEIGHT = 960, 720
 INT_W, INT_H = 320, 200
 
 pygame.init()
-pygame.display.set_mode((WIDTH, HEIGHT), DOUBLEBUF | OPENGL)
+pygame.display.set_mode((WIDTH, HEIGHT), pg.DOUBLEBUF | pg.OPENGL)
 crt = crt.CRTProcessor((INT_W, INT_H), (WIDTH, HEIGHT))
 dm = drawMountain()
 dm.draw()
@@ -142,8 +142,8 @@ while not done:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             done = True
-        if event.type == KEYDOWN:
-            if event.key == K_ESCAPE:
+        if event.type == pg.KEYDOWN:
+            if event.key == pg.K_ESCAPE:
                 done = True
             elif event.key == pygame.K_s:
                 dm.image_save()

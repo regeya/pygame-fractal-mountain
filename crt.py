@@ -1,7 +1,6 @@
 import moderngl
 import pygame
 import numpy as np
-from pygame.locals import *
 
 # --- ZFAST CRT SHADER SOURCE ---
 # Adapted from: https://github.com/libretro/glsl-shaders/blob/master/crt/shaders/zfast_crt.glsl
