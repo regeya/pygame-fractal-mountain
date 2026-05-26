@@ -5,6 +5,7 @@ import crt
 from datetime import datetime
 import pygame.locals as pg
 
+window = pygame.display.set_mode((960, 720))
 
 class drawMountain:
     # (Original drawMountain logic remains unchanged)
@@ -62,30 +63,33 @@ class drawMountain:
 
     def draw(self):
         self.maxLv = 0
-        self.surf.fill((0, 0, 0))
-        max_val = random.uniform(0.95, 1.15)
-        for iter in range(6, 0, -1):
-            sk = 2**iter
+        self.surf.fill((0,0,0))
+        max = random.uniform(0.95, 1.15) # maximum variation, original program says "1 is nice"
+        for iter in range(6,0,-1):
+            sk = 2 ** iter
             hl = int(sk / 2)
-            for y in range(0, 65, sk):
-                for x in range(hl, 64, sk):
-                    ran = (random.random() - 0.5) * max_val * sk
-                    old = (self.lv[x - hl][y] + self.lv[x + hl][y]) / 2
+                # do tops
+            for y in range(0,65,sk):
+                for x in range(hl,64,sk):
+                    ran = (random.random() - 0.5) * max * sk
+                    old = (self.lv[x-hl][y] + self.lv[x + hl][y]) / 2
                     self.lv[x][y] = old + ran
+                    # do bottoms
             for x in range(0, 65, sk):
                 for y in range(hl, 65, sk):
-                    ran = (random.random() - 0.5) * max_val * sk
-                    old = (self.lv[x][y - hl] + self.lv[x][y + hl]) / 2
+                    ran = (random.random() - 0.5) * max * sk
+                    old = (self.lv[x][y-hl] + self.lv[x][y+hl]) / 2
                     self.lv[x][y] = old + ran
+                    # do centers
             for x in range(hl, 65, sk):
                 for y in range(hl, 65, sk):
-                    ran = (random.random() - 0.5) * max_val * sk
-                    old1 = (self.lv[x + hl][y - hl] + self.lv[x - hl][y + hl]) / 2
-                    old2 = (self.lv[x - hl][y - hl] + self.lv[x + hl][y + hl]) / 2
+                    ran = (random.random()-0.5) * max * sk
+                    old1 = (self.lv[x+hl][y-hl] + self.lv[x-hl][y+hl]) / 2
+                    old2 = (self.lv[x-hl][y-hl] + self.lv[x+hl][y+hl]) / 2
                     old = (old1 + old2) / 2
                     self.lv[x][y] = old + ran
                     if self.lv[x][y] > self.maxLv:
-                        self.maxLv = int(self.lv[x][y])
+                        self.maxLv = self.lv[x][y]
 
         self.snowline = self.maxLv - self.maxLv / 4
         for x in range(0, 64):
@@ -121,8 +125,10 @@ class drawMountain:
                 pygame.gfxdraw.filled_polygon(self.surf, points, shade)
 
     def image_save(self):
-        fn = datetime.now().strftime("mountain-%Y%m%d-%H%M%S.png")
+        now = datetime.now()
+        fn = now.strftime("mountain-%Y%m%d-%H%M%S.png")
         pygame.image.save(self.surf, fn)
+        print("doopy")
 
 
 # --- MAIN LOOP ---
@@ -133,6 +139,7 @@ pygame.init()
 pygame.display.set_mode((WIDTH, HEIGHT), pg.DOUBLEBUF | pg.OPENGL)
 crt = crt.CRTProcessor((INT_W, INT_H), (WIDTH, HEIGHT))
 dm = drawMountain()
+
 dm.draw()
 
 clock = pygame.time.Clock()
