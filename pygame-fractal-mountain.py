@@ -7,6 +7,7 @@ import pygame.locals as pg
 
 window = pygame.display.set_mode((960, 720))
 
+
 class drawMountain:
     # (Original drawMountain logic remains unchanged)
     llv: int = 0
@@ -63,29 +64,31 @@ class drawMountain:
 
     def draw(self):
         self.maxLv = 0
-        self.surf.fill((0,0,0))
-        max = random.uniform(0.95, 1.15) # maximum variation, original program says "1 is nice"
-        for iter in range(6,0,-1):
-            sk = 2 ** iter
+        self.surf.fill((0, 0, 0))
+        maxx = random.uniform(
+            0.95, 1.15
+        )  # maximum variation, original program says "1 is nice"
+        for iter in range(6, 0, -1):
+            sk = 2**iter
             hl = int(sk / 2)
-                # do tops
-            for y in range(0,65,sk):
-                for x in range(hl,64,sk):
-                    ran = (random.random() - 0.5) * max * sk
-                    old = (self.lv[x-hl][y] + self.lv[x + hl][y]) / 2
+            # do tops
+            for y in range(0, 65, sk):
+                for x in range(hl, 64, sk):
+                    ran = (random.random() - 0.5) * maxx * sk
+                    old = (self.lv[x - hl][y] + self.lv[x + hl][y]) / 2
                     self.lv[x][y] = old + ran
                     # do bottoms
             for x in range(0, 65, sk):
                 for y in range(hl, 65, sk):
-                    ran = (random.random() - 0.5) * max * sk
-                    old = (self.lv[x][y-hl] + self.lv[x][y+hl]) / 2
+                    ran = (random.random() - 0.5) * maxx * sk
+                    old = (self.lv[x][y - hl] + self.lv[x][y + hl]) / 2
                     self.lv[x][y] = old + ran
                     # do centers
             for x in range(hl, 65, sk):
                 for y in range(hl, 65, sk):
-                    ran = (random.random()-0.5) * max * sk
-                    old1 = (self.lv[x+hl][y-hl] + self.lv[x-hl][y+hl]) / 2
-                    old2 = (self.lv[x-hl][y-hl] + self.lv[x+hl][y+hl]) / 2
+                    ran = (random.random() - 0.5) * maxx * sk
+                    old1 = (self.lv[x + hl][y - hl] + self.lv[x - hl][y + hl]) / 2
+                    old2 = (self.lv[x - hl][y - hl] + self.lv[x + hl][y + hl]) / 2
                     old = (old1 + old2) / 2
                     self.lv[x][y] = old + ran
                     if self.lv[x][y] > self.maxLv:
